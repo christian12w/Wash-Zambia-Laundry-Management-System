@@ -1193,6 +1193,10 @@
   </div>
 </div>
 
+<!-- GitHub-Compatible Database -->
+<script src="database-github.js"></script>
+
+<!-- Original Database -->
 <script>
 // Internal Database System - Works locally and can be backed up/restored
 class WashZambiaDB {
@@ -1505,14 +1509,18 @@ async function login() {
   errorMsg.style.display = 'none';
 
   try {
-    // Get users from IndexedDB first
-    let users = await washDB.getAll('users');
+    // Wait for database to initialize
+    if (!githubDB.isInitialized) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Get users from GitHub database
+    let users = await githubDB.getAll('users');
     
     // If no users exist, initialize with default users
     if (!users || users.length === 0) {
-      await washDB.set('users', { username: 'admin', password: 'admin123', role: 'admin' });
-      localStorage.setItem('users', JSON.stringify([{ username: 'admin', password: 'admin123', role: 'admin' }]));
-      users = [{ username: 'admin', password: 'admin123', role: 'admin' }];
+      await githubDB.create('users', { username: 'admin', password: 'admin123', role: 'admin', createdAt: new Date().toISOString() });
+      users = await githubDB.getAll('users');
     }
     
     console.log('Users found:', users);
@@ -1523,7 +1531,6 @@ async function login() {
 
     if (user) {
       currentUser = user;
-      await storage.set('currentUser', user);
       localStorage.setItem('currentUser', JSON.stringify(user));
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
@@ -1540,7 +1547,7 @@ async function login() {
   } catch (error) {
     console.error('Login error:', error);
     // Fallback to localStorage only
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const users = JSON.parse(localStorage.getItem('washZambia_users') || '[]');
     const user = users.find(u => u.username === username && u.password === password);
     
     if (user) {
@@ -1628,8 +1635,8 @@ function renderUsers() {
   
   tbody.innerHTML = "";
 
-  // Get users from IndexedDB directly
-  washDB.getAll('users').then(users => {
+  // Get users from GitHub database
+  githubDB.getAll('users').then(users => {
     if (!users || users.length === 0) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #999;">No users found</td></tr>';
       return;
@@ -1649,7 +1656,7 @@ function renderUsers() {
 
       const actions = isCurrentUser ? 
         '<span style="color: #999; font-size: 0.9rem;">Current user</span>' :
-        `<button onclick="deleteUser(${index})" class="action-btn delete-btn" style="padding: 4px 8px; font-size: 0.8rem;">Delete</button>`;
+        `<button onclick="deleteUser('${user.username}')" class="action-btn delete-btn" style="padding: 4px 8px; font-size: 0.8rem;">Delete</button>`;
       
       const row = `
         <tr>
@@ -1664,31 +1671,33 @@ function renderUsers() {
   });
 }
 
-async function deleteUser(index) {
-  const users = await washDB.getAll('users');
-  const user = users[index];
-  
-  if (user.username === 'admin') {
+async function deleteUser(username) {
+  if (username === 'admin') {
     alert('Cannot delete admin user!');
     return;
   }
   
-  if (currentUser && currentUser.username === user.username) {
+  if (currentUser && currentUser.username === username) {
     alert('Cannot delete your own account!');
     return;
   }
   
-  if (confirm(`Delete user "${user.username}"? This action cannot be undone.`)) {
-    // Delete from IndexedDB
-    await washDB.delete('users', user.username || index);
-    
-    // Update localStorage fallback
-    const localUsers = JSON.parse(localStorage.getItem('users') || '[]');
-    const filteredLocalUsers = localUsers.filter(u => u.username !== user.username);
-    localStorage.setItem('users', JSON.stringify(filteredLocalUsers));
-    
-    await updateAdminDashboard();
-    alert(`User "${user.username}" deleted successfully!`);
+  if (confirm(`Delete user "${username}"? This action cannot be undone.`)) {
+    try {
+      // Delete from GitHub database
+      await githubDB.delete('users', username);
+      
+      // Update localStorage fallback
+      const localUsers = JSON.parse(localStorage.getItem('washZambia_users') || '[]');
+      const filteredLocalUsers = localUsers.filter(u => u.username !== username);
+      localStorage.setItem('washZambia_users', JSON.stringify(filteredLocalUsers));
+      
+      await updateAdminDashboard();
+      alert(`User "${username}" deleted successfully!`);
+    } catch (error) {
+      console.error('Delete user error:', error);
+      alert('Error deleting user. Please try again.');
+    }
   }
 }
 
@@ -2421,15 +2430,31 @@ async function addUserAsync() {
   }
 
   try {
-    const users = await storage.get('users', defaultUsers);
+    // Wait for database to initialize
+    if (!githubDB.isInitialized) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    const users = await githubDB.getAll('users');
     
     if (users.find(u => u.username === username)) {
       alert("Username already exists!");
       return;
     }
 
-    users.push({ username, password, role });
-    await storage.set('users', users);
+    const newUser = {
+      username,
+      password,
+      role,
+      createdAt: new Date().toISOString()
+    };
+
+    await githubDB.create('users', newUser);
+    
+    // Update localStorage fallback
+    const localUsers = JSON.parse(localStorage.getItem('washZambia_users') || '[]');
+    localUsers.push(newUser);
+    localStorage.setItem('washZambia_users', JSON.stringify(localUsers));
     
     // Update user count display
     await updateAdminDashboard();
