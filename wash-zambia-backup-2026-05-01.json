@@ -1,0 +1,19 @@
+{
+  "sales": [],
+  "customers": [],
+  "expenses": [],
+  "users": [
+    {
+      "username": "Alex",
+      "password": "Alex1234",
+      "role": "cashier"
+    },
+    {
+      "username": "admin",
+      "password": "admin123",
+      "role": "admin"
+    }
+  ],
+  "backupDate": "2026-05-01T15:44:57.602Z",
+  "version": 1
+}

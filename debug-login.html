@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Debug</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .debug { margin: 10px 0; padding: 10px; border: 1px solid #ccc; background: #f9f9f9; }
+        .error { background: #f8d7da; }
+        .success { background: #d4edda; }
+    </style>
+</head>
+<body>
+    <h1>Login Debug Test</h1>
+    
+    <div class="debug">
+        <h3>Test Login Form</h3>
+        <input type="text" id="username" placeholder="Username" value="admin"><br><br>
+        <input type="password" id="password" placeholder="Password" value="admin123"><br><br>
+        <button onclick="testLogin()">Test Login</button>
+        <div id="result"></div>
+    </div>
+
+    <div class="debug">
+        <h3>Database Check</h3>
+        <button onclick="checkDatabase()">Check Database</button>
+        <div id="dbResult"></div>
+    </div>
+
+    <script>
+        // Test with localStorage first
+        const defaultUsers = [{ username: "admin", password: "admin123", role: "admin" }];
+        
+        function testLogin() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const result = document.getElementById('result');
+            
+            // Try localStorage first
+            let users = JSON.parse(localStorage.getItem('users') || '[]');
+            
+            result.innerHTML = `
+                <strong>Username:</strong> ${username}<br>
+                <strong>Password:</strong> ${password}<br>
+                <strong>Users in localStorage:</strong> ${users.length}<br>
+                <strong>Users data:</strong> <pre>${JSON.stringify(users, null, 2)}</pre>
+            `;
+            
+            // Check if default users exist
+            if (users.length === 0) {
+                users = defaultUsers;
+                localStorage.setItem('users', JSON.stringify(users));
+                result.innerHTML += '<br><strong>Added default users to localStorage</strong>';
+            }
+            
+            const user = users.find(u => u.username === username && u.password === password);
+            
+            if (user) {
+                result.innerHTML += `<br><div class="success">LOGIN SUCCESS! User found: ${JSON.stringify(user)}</div>`;
+            } else {
+                result.innerHTML += `<br><div class="error">LOGIN FAILED! User not found.</div>`;
+            }
+        }
+        
+        function checkDatabase() {
+            const dbResult = document.getElementById('dbResult');
+            
+            // Check localStorage
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+            
+            dbResult.innerHTML = `
+                <strong>localStorage Users:</strong> ${users.length}<br>
+                <pre>${JSON.stringify(users, null, 2)}</pre><br>
+                <strong>Current User:</strong> ${currentUser ? JSON.stringify(currentUser) : 'None'}<br>
+                <strong>Default Users:</strong> <pre>${JSON.stringify(defaultUsers, null, 2)}</pre>
+            `;
+        }
+        
+        // Auto-check on load
+        checkDatabase();
+    </script>
+</body>
+</html>

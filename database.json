@@ -1,0 +1,14 @@
+{
+  "sales": [],
+  "customers": [],
+  "expenses": [],
+  "users": [
+    {
+      "username": "admin",
+      "password": "admin123",
+      "role": "admin"
+    }
+  ],
+  "version": "1.0",
+  "lastUpdated": "2026-05-01"
+}

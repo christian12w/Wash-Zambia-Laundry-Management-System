@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Calculations</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .pass { background: #d4edda; }
+        .fail { background: #f8d7da; }
+    </style>
+</head>
+<body>
+    <h1>Calculation Tests</h1>
+    <div id="results"></div>
+
+    <script>
+        // Copy the calculateTotal function
+        function calculateTotal(qty, price, execBag, discount) {
+            const subtotal = (qty * price) + (execBag * 30);
+            const total = Math.max(0, subtotal - discount);
+            return total;
+        }
+
+        // Test cases
+        const tests = [
+            { name: "Basic calculation", qty: 2, price: 50, execBag: 0, discount: 0, expected: 100 },
+            { name: "With executive bag", qty: 1, price: 60, execBag: 1, discount: 0, expected: 90 },
+            { name: "With discount", qty: 3, price: 40, execBag: 0, discount: 20, expected: 100 },
+            { name: "With both exec bag and discount", qty: 2, price: 55, execBag: 2, discount: 30, expected: 130 },
+            { name: "Zero quantity", qty: 0, price: 50, execBag: 1, discount: 0, expected: 30 },
+            { name: "Large discount", qty: 2, price: 50, execBag: 0, discount: 150, expected: 0 },
+            { name: "Decimal values", qty: 2.5, price: 45.50, execBag: 1, discount: 10, expected: 113.75 }
+        ];
+
+        function runTests() {
+            const results = document.getElementById('results');
+            results.innerHTML = '';
+            
+            let passed = 0;
+            let failed = 0;
+
+            tests.forEach(test => {
+                const result = calculateTotal(test.qty, test.price, test.execBag, test.discount);
+                const isPass = Math.abs(result - test.expected) < 0.01;
+                
+                const div = document.createElement('div');
+                div.className = `test ${isPass ? 'pass' : 'fail'}`;
+                div.innerHTML = `
+                    <strong>${test.name}</strong><br>
+                    Input: qty=${test.qty}, price=${test.price}, execBag=${test.execBag}, discount=${test.discount}<br>
+                    Expected: ${test.expected}, Got: ${result}<br>
+                    Status: ${isPass ? 'PASS' : 'FAIL'}
+                `;
+                results.appendChild(div);
+                
+                if (isPass) passed++;
+                else failed++;
+            });
+
+            const summary = document.createElement('div');
+            summary.innerHTML = `<h2>Summary: ${passed} passed, ${failed} failed</h2>`;
+            results.appendChild(summary);
+        }
+
+        runTests();
+    </script>
+</body>
+</html>
