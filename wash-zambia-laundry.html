@@ -1196,6 +1196,12 @@
 <!-- GitHub-Compatible Database -->
 <script src="database-github.js"></script>
 
+<!-- Initialize GitHub Database -->
+<script>
+// Create GitHub database instance
+const githubDB = new GitHubDatabase();
+</script>
+
 <!-- Original Database -->
 <script>
 // Internal Database System - Works locally and can be backed up/restored
@@ -1510,8 +1516,14 @@ async function login() {
 
   try {
     // Wait for database to initialize
-    if (!githubDB.isInitialized) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    if (!githubDB || !githubDB.isInitialized) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    // Check if database is still not initialized, use fallback
+    if (!githubDB || !githubDB.isInitialized) {
+      console.warn('GitHub database not initialized, using fallback');
+      throw new Error('Database not ready');
     }
     
     // Get users from GitHub database
@@ -1519,6 +1531,7 @@ async function login() {
     
     // If no users exist, initialize with default users
     if (!users || users.length === 0) {
+      console.log('No users found, creating default admin user');
       await githubDB.create('users', { username: 'admin', password: 'admin123', role: 'admin', createdAt: new Date().toISOString() });
       users = await githubDB.getAll('users');
     }
@@ -1546,8 +1559,14 @@ async function login() {
     }
   } catch (error) {
     console.error('Login error:', error);
-    // Fallback to localStorage only
-    const users = JSON.parse(localStorage.getItem('washZambia_users') || '[]');
+    
+    // Fallback to localStorage - create default user if needed
+    let users = JSON.parse(localStorage.getItem('washZambia_users') || '[]');
+    if (users.length === 0) {
+      users = [{ username: 'admin', password: 'admin123', role: 'admin' }];
+      localStorage.setItem('washZambia_users', JSON.stringify(users));
+    }
+    
     const user = users.find(u => u.username === username && u.password === password);
     
     if (user) {
