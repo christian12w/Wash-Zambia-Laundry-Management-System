@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wash Zambia - Minimal Version</title>
+    <style>
+        body { font-family: Arial; background: linear-gradient(135deg, #667eea, #764ba2); margin: 0; padding: 20px; }
+        .container { max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 10px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #5568d3; }
+        .error { color: red; margin: 10px 0; }
+        .success { color: green; margin: 10px 0; }
+        h1 { text-align: center; color: #333; }
+        .app { display: none; }
+        .nav { margin: 20px 0; }
+        .nav button { width: auto; margin: 5px; padding: 10px 15px; }
+        .section { display: none; padding: 20px; background: #f9f9f9; margin: 10px 0; border-radius: 5px; }
+        .section.active { display: block; }
+    </style>
+</head>
+<body>
+    <!-- LOGIN PAGE -->
+    <div id="loginPage" class="container">
+        <h1>🧺 Wash Zambia</h1>
+        <p style="text-align: center; color: #666;">Minimal Laundry Management</p>
+        
+        <input type="text" id="username" placeholder="Username" value="admin">
+        <input type="password" id="password" placeholder="Password" value="admin123">
+        <div id="loginMsg" class="error"></div>
+        <button onclick="attemptLogin()">Login</button>
+        
+        <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">
+            Default: admin / admin123
+        </p>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="mainApp" class="container app">
+        <h1>🧺 Wash Zambia</h1>
+        <p style="text-align: center; color: #666;">Laundry Management System</p>
+        
+        <div class="nav">
+            <button onclick="showSection('dashboard')">Dashboard</button>
+            <button onclick="showSection('sales')">Sales</button>
+            <button onclick="showSection('customers')">Customers</button>
+            <button onclick="logout()">Logout</button>
+        </div>
+        
+        <div id="dashboard" class="section active">
+            <h3>📊 Dashboard</h3>
+            <p><strong>Total Sales:</strong> <span id="totalSales">0</span></p>
+            <p><strong>Today's Revenue:</strong> K<span id="todayRevenue">0</span></p>
+            <p><strong>Total Customers:</strong> <span id="totalCustomers">0</span></p>
+        </div>
+        
+        <div id="sales" class="section">
+            <h3>💳 Add Sale</h3>
+            <input type="text" id="customerName" placeholder="Customer Name">
+            <input type="number" id="saleAmount" placeholder="Amount (K)">
+            <button onclick="addSale()">Add Sale</button>
+            <div id="salesList"></div>
+        </div>
+        
+        <div id="customers" class="section">
+            <h3>👥 Add Customer</h3>
+            <input type="text" id="newCustomer" placeholder="Customer Name">
+            <input type="tel" id="customerPhone" placeholder="Phone">
+            <button onclick="addCustomer()">Add Customer</button>
+            <div id="customersList"></div>
+        </div>
+    </div>
+
+    <script>
+        // Data storage
+        let sales = JSON.parse(localStorage.getItem('sales') || '[]');
+        let customers = JSON.parse(localStorage.getItem('customers') || '[]');
+        
+        console.log('App loaded. Sales:', sales.length, 'Customers:', customers.length);
+        
+        function attemptLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const msgDiv = document.getElementById('loginMsg');
+            
+            console.log('Login attempt:', username);
+            
+            if (username === 'admin' && password === 'admin123') {
+                msgDiv.textContent = '';
+                msgDiv.className = 'success';
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                updateDashboard();
+                console.log('Login successful!');
+            } else {
+                msgDiv.textContent = 'Invalid username or password';
+                msgDiv.className = 'error';
+                console.log('Login failed');
+            }
+        }
+        
+        function logout() {
+            document.getElementById('loginPage').style.display = 'block';
+            document.getElementById('mainApp').style.display = 'none';
+            console.log('Logged out');
+        }
+        
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            // Show selected section
+            document.getElementById(sectionName).classList.add('active');
+        }
+        
+        function addSale() {
+            const customer = document.getElementById('customerName').value;
+            const amount = parseFloat(document.getElementById('saleAmount').value);
+            
+            if (!customer || !amount) {
+                alert('Please fill in customer name and amount');
+                return;
+            }
+            
+            const sale = {
+                id: Date.now(),
+                customer: customer,
+                amount: amount,
+                date: new Date().toLocaleDateString()
+            };
+            
+            sales.push(sale);
+            localStorage.setItem('sales', JSON.stringify(sales));
+            
+            // Clear form
+            document.getElementById('customerName').value = '';
+            document.getElementById('saleAmount').value = '';
+            
+            // Update displays
+            updateDashboard();
+            displaySales();
+            
+            alert('Sale added successfully!');
+        }
+        
+        function addCustomer() {
+            const name = document.getElementById('newCustomer').value;
+            const phone = document.getElementById('customerPhone').value;
+            
+            if (!name) {
+                alert('Please enter customer name');
+                return;
+            }
+            
+            const customer = {
+                id: Date.now(),
+                name: name,
+                phone: phone,
+                date: new Date().toLocaleDateString()
+            };
+            
+            customers.push(customer);
+            localStorage.setItem('customers', JSON.stringify(customers));
+            
+            // Clear form
+            document.getElementById('newCustomer').value = '';
+            document.getElementById('customerPhone').value = '';
+            
+            // Update displays
+            updateDashboard();
+            displayCustomers();
+            
+            alert('Customer added successfully!');
+        }
+        
+        function updateDashboard() {
+            document.getElementById('totalSales').textContent = sales.length;
+            document.getElementById('totalCustomers').textContent = customers.length;
+            
+            const todayRevenue = sales.reduce((sum, sale) => sum + sale.amount, 0);
+            document.getElementById('todayRevenue').textContent = todayRevenue.toFixed(2);
+        }
+        
+        function displaySales() {
+            const salesList = document.getElementById('salesList');
+            salesList.innerHTML = '<h4>Recent Sales:</h4>';
+            
+            sales.slice(-5).reverse().forEach(sale => {
+                salesList.innerHTML += `<p>${sale.date} - ${sale.customer}: K${sale.amount}</p>`;
+            });
+        }
+        
+        function displayCustomers() {
+            const customersList = document.getElementById('customersList');
+            customersList.innerHTML = '<h4>Customers:</h4>';
+            
+            customers.forEach(customer => {
+                customersList.innerHTML += `<p>${customer.name} - ${customer.phone || 'No phone'}</p>`;
+            });
+        }
+        
+        // Initialize
+        updateDashboard();
+        displaySales();
+        displayCustomers();
+    </script>
+</body>
+</html>
