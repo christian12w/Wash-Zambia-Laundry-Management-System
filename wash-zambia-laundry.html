@@ -1505,80 +1505,85 @@ function initUsers() {
 
 async function login() {
   const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
+  const password = (document.getElementById('password').value || '').trim();
   const errorMsg = document.getElementById('errorMsg');
-
   errorMsg.style.display = 'none';
 
-  try {
-    // Wait for GitHubDatabase async init (poll, exits early when ready)
-    for (let i = 0; i < 80 && githubDB && !githubDB.isInitialized; i++) {
+  const defaultSeed = { username: 'admin', password: 'admin123', role: 'admin', createdAt: new Date().toISOString() };
+
+  async function waitForGithubDb() {
+    if (typeof githubDB === 'undefined' || !githubDB) return;
+    for (let i = 0; i < 100 && !githubDB.isInitialized; i++) {
       await new Promise((r) => setTimeout(r, 25));
     }
-    
-    // Check if database is still not initialized, use fallback
-    if (!githubDB || !githubDB.isInitialized) {
-      console.warn('GitHub database not initialized, using fallback');
-      throw new Error('Database not ready');
-    }
-    
-    // Get users from GitHub database
-    let users = await githubDB.getAll('users');
-    
-    // If no users exist, initialize with default users
-    if (!users || users.length === 0) {
-      console.log('No users found, creating default admin user');
-      await githubDB.create('users', { username: 'admin', password: 'admin123', role: 'admin', createdAt: new Date().toISOString() });
-      users = await githubDB.getAll('users');
-    }
-    
-    console.log('Users found:', users);
-    console.log('Looking for:', username, password);
-    
-    const user = users.find(u => u.username === username && u.password === password);
-    console.log('User found:', user);
+  }
 
-    if (user) {
-      currentUser = user;
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      document.getElementById('loginPage').style.display = 'none';
-      document.getElementById('mainApp').style.display = 'block';
+  async function readGithubUsers() {
+    try {
+      await waitForGithubDb();
+      if (typeof githubDB === 'undefined' || !githubDB || !githubDB.isInitialized) return [];
+      const list = await githubDB.getAll('users');
+      return Array.isArray(list) ? list : [];
+    } catch (e) {
+      console.warn('readGithubUsers:', e);
+      return [];
+    }
+  }
 
-      if (user.role === "admin") {
-        document.getElementById('adminTab').style.display = 'block';
+  function readLocalUsers() {
+    try {
+      const raw = localStorage.getItem('washZambia_users');
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  let ghUsers = await readGithubUsers();
+  let localUsers = readLocalUsers();
+
+  if (ghUsers.length === 0 && localUsers.length === 0) {
+    localUsers = [{ ...defaultSeed }];
+    localStorage.setItem('washZambia_users', JSON.stringify(localUsers));
+    try {
+      await waitForGithubDb();
+      if (typeof githubDB !== 'undefined' && githubDB && githubDB.isInitialized) {
+        await githubDB.create('users', {
+          username: defaultSeed.username,
+          password: defaultSeed.password,
+          role: defaultSeed.role,
+          createdAt: defaultSeed.createdAt
+        }).catch(() => {});
       }
-      await loadSales();
-      showPage(0);
-    } else {
-      errorMsg.textContent = "Invalid username or password!";
-      errorMsg.style.display = 'block';
+    } catch (_) {}
+    ghUsers = await readGithubUsers();
+  }
+
+  const byName = new Map();
+  for (const u of ghUsers) {
+    if (u && u.username) byName.set(u.username, u);
+  }
+  for (const u of localUsers) {
+    if (u && u.username && !byName.has(u.username)) byName.set(u.username, u);
+  }
+  const merged = [...byName.values()];
+
+  const user = merged.find((u) => u.username === username && u.password === password);
+
+  if (user) {
+    currentUser = user;
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    if (user.role === 'admin') {
+      document.getElementById('adminTab').style.display = 'block';
     }
-  } catch (error) {
-    console.error('Login error:', error);
-    
-    // Fallback to localStorage - create default user if needed
-    let users = JSON.parse(localStorage.getItem('washZambia_users') || '[]');
-    if (users.length === 0) {
-      users = [{ username: 'admin', password: 'admin123', role: 'admin' }];
-      localStorage.setItem('washZambia_users', JSON.stringify(users));
-    }
-    
-    const user = users.find(u => u.username === username && u.password === password);
-    
-    if (user) {
-      currentUser = user;
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      document.getElementById('loginPage').style.display = 'none';
-      document.getElementById('mainApp').style.display = 'block';
-      if (user.role === "admin") {
-        document.getElementById('adminTab').style.display = 'block';
-      }
-      await loadSales();
-      showPage(0);
-    } else {
-      errorMsg.textContent = "Invalid username or password!";
-      errorMsg.style.display = 'block';
-    }
+    await loadSales();
+    showPage(0);
+  } else {
+    errorMsg.textContent = 'Invalid username or password!';
+    errorMsg.style.display = 'block';
   }
 }
 

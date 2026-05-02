@@ -1503,67 +1503,85 @@ function initUsers() {
 
 async function login() {
   const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
+  const password = (document.getElementById('password').value || '').trim();
   const errorMsg = document.getElementById('errorMsg');
-
   errorMsg.style.display = 'none';
 
-  try {
-    // Wait for database to initialize
-    if (!githubDB.isInitialized) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    
-    // Get users from GitHub database
-    let users = await githubDB.getAll('users');
-    
-    // If no users exist, initialize with default users
-    if (!users || users.length === 0) {
-      await githubDB.create('users', { username: 'admin', password: 'admin123', role: 'admin', createdAt: new Date().toISOString() });
-      users = await githubDB.getAll('users');
-    }
-    
-    console.log('Users found:', users);
-    console.log('Looking for:', username, password);
-    
-    const user = users.find(u => u.username === username && u.password === password);
-    console.log('User found:', user);
+  const defaultSeed = { username: 'admin', password: 'admin123', role: 'admin', createdAt: new Date().toISOString() };
 
-    if (user) {
-      currentUser = user;
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      document.getElementById('loginPage').style.display = 'none';
-      document.getElementById('mainApp').style.display = 'block';
+  async function waitForGithubDb() {
+    if (typeof githubDB === 'undefined' || !githubDB) return;
+    for (let i = 0; i < 100 && !githubDB.isInitialized; i++) {
+      await new Promise((r) => setTimeout(r, 25));
+    }
+  }
 
-      if (user.role === "admin") {
-        document.getElementById('adminTab').style.display = 'block';
-      }
-      await loadSales();
-      showPage(0);
-    } else {
-      errorMsg.textContent = "Invalid username or password!";
-      errorMsg.style.display = 'block';
+  async function readGithubUsers() {
+    try {
+      await waitForGithubDb();
+      if (typeof githubDB === 'undefined' || !githubDB || !githubDB.isInitialized) return [];
+      const list = await githubDB.getAll('users');
+      return Array.isArray(list) ? list : [];
+    } catch (e) {
+      console.warn('readGithubUsers:', e);
+      return [];
     }
-  } catch (error) {
-    console.error('Login error:', error);
-    // Fallback to localStorage only
-    const users = JSON.parse(localStorage.getItem('washZambia_users') || '[]');
-    const user = users.find(u => u.username === username && u.password === password);
-    
-    if (user) {
-      currentUser = user;
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      document.getElementById('loginPage').style.display = 'none';
-      document.getElementById('mainApp').style.display = 'block';
-      if (user.role === "admin") {
-        document.getElementById('adminTab').style.display = 'block';
-      }
-      await loadSales();
-      showPage(0);
-    } else {
-      errorMsg.textContent = "Invalid username or password!";
-      errorMsg.style.display = 'block';
+  }
+
+  function readLocalUsers() {
+    try {
+      const raw = localStorage.getItem('washZambia_users');
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      return [];
     }
+  }
+
+  let ghUsers = await readGithubUsers();
+  let localUsers = readLocalUsers();
+
+  if (ghUsers.length === 0 && localUsers.length === 0) {
+    localUsers = [{ ...defaultSeed }];
+    localStorage.setItem('washZambia_users', JSON.stringify(localUsers));
+    try {
+      await waitForGithubDb();
+      if (typeof githubDB !== 'undefined' && githubDB && githubDB.isInitialized) {
+        await githubDB.create('users', {
+          username: defaultSeed.username,
+          password: defaultSeed.password,
+          role: defaultSeed.role,
+          createdAt: defaultSeed.createdAt
+        }).catch(() => {});
+      }
+    } catch (_) {}
+    ghUsers = await readGithubUsers();
+  }
+
+  const byName = new Map();
+  for (const u of ghUsers) {
+    if (u && u.username) byName.set(u.username, u);
+  }
+  for (const u of localUsers) {
+    if (u && u.username && !byName.has(u.username)) byName.set(u.username, u);
+  }
+  const merged = [...byName.values()];
+
+  const user = merged.find((u) => u.username === username && u.password === password);
+
+  if (user) {
+    currentUser = user;
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    if (user.role === 'admin') {
+      document.getElementById('adminTab').style.display = 'block';
+    }
+    await loadSales();
+    showPage(0);
+  } else {
+    errorMsg.textContent = 'Invalid username or password!';
+    errorMsg.style.display = 'block';
   }
 }
 
