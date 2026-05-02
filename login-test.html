@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Test - Wash Zambia</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #1e293b;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #374151;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success { background: #d1fae5; color: #065f46; }
+        .error { background: #fee2e2; color: #991b1b; }
+        .warning { background: #fef3c7; color: #92400e; }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #2563eb; }
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        input {
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        #results {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧺 Wash Zambia Login Test</h1>
+        
+        <div class="test-section">
+            <h3>📋 Browser Compatibility Check</h3>
+            <div id="browserCheck"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🗄️ Database Initialization Test</h3>
+            <button onclick="testDatabase()">Test Database</button>
+            <div id="dbResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔐 Simple Login Test</h3>
+            <div class="login-form">
+                <input type="text" id="testUsername" placeholder="Username" value="admin">
+                <input type="password" id="testPassword" placeholder="Password" value="admin123">
+                <button onclick="testSimpleLogin()">Test Login</button>
+            </div>
+            <div id="loginResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 Debug Console</h3>
+            <button onclick="clearConsole()">Clear Console</button>
+            <div id="results"></div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="window.location.href='app.html'">Go to Main App</button>
+            <button onclick="window.location.href='wash-zambia-laundry.html'">Go to Original</button>
+        </div>
+    </div>
+
+    <!-- Load GitHub Database -->
+    <script src="database-github.js"></script>
+    <script>
+        // Create GitHub database instance
+        const githubDB = new GitHubDatabase();
+        
+        let console = {
+            log: function(...args) {
+                const results = document.getElementById('results');
+                results.textContent += '[LOG] ' + args.join(' ') + '\n';
+                console.log(...args);
+            },
+            error: function(...args) {
+                const results = document.getElementById('results');
+                results.textContent += '[ERROR] ' + args.join(' ') + '\n';
+                console.error(...args);
+            },
+            warn: function(...args) {
+                const results = document.getElementById('results');
+                results.textContent += '[WARN] ' + args.join(' ') + '\n';
+                console.warn(...args);
+            }
+        };
+        
+        function clearConsole() {
+            document.getElementById('results').textContent = '';
+        }
+        
+        function checkBrowser() {
+            const check = document.getElementById('browserCheck');
+            let html = '';
+            
+            // IndexedDB check
+            if ('indexedDB' in window) {
+                html += '<div class="status success">✅ IndexedDB Supported</div>';
+            } else {
+                html += '<div class="status error">❌ IndexedDB Not Supported</div>';
+            }
+            
+            // localStorage check
+            try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                html += '<div class="status success">✅ localStorage Working</div>';
+            } catch (e) {
+                html += '<div class="status error">❌ localStorage Not Working</div>';
+            }
+            
+            // JavaScript check
+            html += '<div class="status success">✅ JavaScript Enabled</div>';
+            
+            check.innerHTML = html;
+        }
+        
+        async function testDatabase() {
+            const results = document.getElementById('dbResults');
+            results.innerHTML = '<div class="status warning">Testing database...</div>';
+            
+            try {
+                console.log('Testing database initialization...');
+                
+                // Wait for database to initialize
+                let attempts = 0;
+                while (!githubDB.isInitialized && attempts < 10) {
+                    console.log(`Waiting for database... attempt ${attempts + 1}`);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    attempts++;
+                }
+                
+                if (githubDB.isInitialized) {
+                    console.log('Database initialized successfully!');
+                    console.log('Database type:', githubDB.useLocalStorage ? 'localStorage' : 'IndexedDB');
+                    
+                    // Test user creation
+                    console.log('Testing user operations...');
+                    
+                    // Check if admin user exists
+                    let users = await githubDB.getAll('users');
+                    console.log('Current users:', users);
+                    
+                    if (!users || users.length === 0) {
+                        console.log('Creating default admin user...');
+                        await githubDB.create('users', { 
+                            username: 'admin', 
+                            password: 'admin123', 
+                            role: 'admin', 
+                            createdAt: new Date().toISOString() 
+                        });
+                        users = await githubDB.getAll('users');
+                        console.log('Users after creation:', users);
+                    }
+                    
+                    results.innerHTML = '<div class="status success">✅ Database Working</div>';
+                } else {
+                    console.error('Database failed to initialize');
+                    results.innerHTML = '<div class="status error">❌ Database Failed</div>';
+                }
+            } catch (error) {
+                console.error('Database test error:', error);
+                results.innerHTML = '<div class="status error">❌ Database Error: ' + error.message + '</div>';
+            }
+        }
+        
+        async function testSimpleLogin() {
+            const results = document.getElementById('loginResults');
+            const username = document.getElementById('testUsername').value;
+            const password = document.getElementById('testPassword').value;
+            
+            results.innerHTML = '<div class="status warning">Testing login...</div>';
+            
+            try {
+                console.log('Testing login with:', username, password);
+                
+                // Wait for database
+                if (!githubDB.isInitialized) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+                
+                if (!githubDB.isInitialized) {
+                    throw new Error('Database not initialized');
+                }
+                
+                // Get users
+                let users = await githubDB.getAll('users');
+                console.log('Available users:', users);
+                
+                if (!users || users.length === 0) {
+                    // Create default user
+                    await githubDB.create('users', { 
+                        username: 'admin', 
+                        password: 'admin123', 
+                        role: 'admin', 
+                        createdAt: new Date().toISOString() 
+                    });
+                    users = await githubDB.getAll('users');
+                }
+                
+                // Find user
+                const user = users.find(u => u.username === username && u.password === password);
+                console.log('User found:', user);
+                
+                if (user) {
+                    results.innerHTML = '<div class="status success">✅ Login Successful! User: ' + user.username + ' (' + user.role + ')</div>';
+                } else {
+                    results.innerHTML = '<div class="status error">❌ Login Failed - Invalid credentials</div>';
+                }
+            } catch (error) {
+                console.error('Login test error:', error);
+                results.innerHTML = '<div class="status error">❌ Login Error: ' + error.message + '</div>';
+            }
+        }
+        
+        // Initialize checks
+        window.onload = function() {
+            console.log('Login test page loaded');
+            checkBrowser();
+            console.log('GitHub DB instance created:', githubDB);
+        };
+    </script>
+</body>
+</html>
